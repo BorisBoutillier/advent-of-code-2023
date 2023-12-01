@@ -4,15 +4,17 @@ This is the code that I have developped to solve the puzzles of the [Advent of C
 
 This is raw code quality, where my goal is to find the solution, not to be the most readable/maintainable code, in particular no cleaning is done after I have solved the puzzle.
 
-Run with 
+Usage 
 ```
-cargo run --release --bin day-XX -- [part1|part2] (-e|--example)? (-i|--input path_of_file)?
+# To run the provided example for each part:
+cargo test --bin day-XX
+# To run the 
+cargo run --release --bin day-XX -- [part1|part2] (-i|--input path_of_file)?
 ```
 
 - XX is the day
 - [part1|part2] is for part 1 or part 2.
-- --example: When set uses day-XX/example.txt as input file
-- --file: Defined path of input file to use, when not provided and not --example, uses day-XX/input.txt, my input file.
+- --input: Defined path of input file to use, defaults to day-XX/input.txt, whichh is my personal input file from AoC.
 
 # A Question on a solution/code ?
 -> File an issue, or you contact me on discord username 'bobox_214'

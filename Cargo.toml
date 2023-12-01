@@ -5,3 +5,6 @@ members = [
   "aoc-commons",
   "day-*",
 ]
+
+[workspace.dependencies]
+aoc-commons = { version = "*", path = "./aoc-commons" }
