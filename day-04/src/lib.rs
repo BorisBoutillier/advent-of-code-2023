@@ -1,58 +1,49 @@
-use std::collections::HashSet;
-
 use aoc_commons::Part;
 
-#[derive(Debug)]
-struct Card {
-    n_winner: usize,
-}
-
-impl Card {
-    pub fn parse(line: &str) -> Card {
-        let numbers = line.split(':').nth(1).unwrap();
-        let mut split = numbers.split('|');
-        let winning = split
-            .next()
-            .unwrap()
-            .split_ascii_whitespace()
-            .map(|n| n.parse::<u32>().unwrap())
-            .collect::<HashSet<_>>();
-        let n_winner = split
-            .next()
-            .unwrap()
-            .split_ascii_whitespace()
-            .map(|n| n.parse::<u32>().unwrap())
-            .filter(|number| winning.contains(number))
-            .count();
-        Card { n_winner }
-    }
-
-    pub fn score(&self) -> usize {
-        match self.n_winner {
-            0 => 0,
-            _ => 1 << (self.n_winner - 1),
-        }
-    }
-    pub fn n_winner(&self) -> usize {
-        self.n_winner
-    }
+pub fn parse_n_winner(line: &str) -> usize {
+    let numbers = line.split(':').nth(1).unwrap();
+    let mut split = numbers.split('|');
+    let winning = split
+        .next()
+        .unwrap()
+        .split_ascii_whitespace()
+        .map(|n| n.parse::<u32>().unwrap())
+        .collect::<Vec<_>>();
+    let n_winner = split
+        .next()
+        .unwrap()
+        .split_ascii_whitespace()
+        .map(|n| n.parse::<u32>().unwrap())
+        .filter(|number| winning.contains(number))
+        .count();
+    n_winner
 }
 
 pub fn solver(part: Part, input: &str) -> String {
     use Part::*;
-    let cards = input.lines().map(Card::parse).collect::<Vec<_>>();
+    let n_winner_iter = input.lines().map(parse_n_winner);
     match part {
-        Part1 => cards.iter().map(|card| card.score()).sum(),
+        Part1 => n_winner_iter
+            .map(|n_winner| match n_winner {
+                0 => 1,
+                _ => 1 << (n_winner - 1),
+            })
+            .sum(),
         Part2 => {
-            let mut treated_cards = 0;
-            let mut owned_cards = vec![1; cards.len()];
-            for i in 0..owned_cards.len() {
-                treated_cards += owned_cards[i];
-                for j in i + 1..i + 1 + cards[i].n_winner() {
-                    owned_cards[j] += owned_cards[i];
-                }
-            }
-            treated_cards
+            n_winner_iter
+                .fold(
+                    (0, vec![]),
+                    |(mut treated_cards, mut owned_cards), n_winner| {
+                        owned_cards.resize((1 + n_winner).max(owned_cards.len()), 1);
+                        let owned = owned_cards.remove(0);
+                        treated_cards += owned;
+                        for owned_card in owned_cards[0..n_winner].iter_mut() {
+                            *owned_card += owned;
+                        }
+                        (treated_cards, owned_cards)
+                    },
+                )
+                .0
         }
     }
     .to_string()
