@@ -8,3 +8,4 @@ members = [
 
 [workspace.dependencies]
 aoc-commons = { version = "*", path = "./aoc-commons" }
+criterion = "0.5"
