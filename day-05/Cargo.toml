@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 aoc-commons = { workspace = true }
+range-set-blaze = "0.1.13"
 
 [dev-dependencies]
 criterion = { workspace = true }

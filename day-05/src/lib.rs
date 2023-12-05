@@ -1,9 +1,11 @@
-use std::{ops::Range, str::Lines};
+use std::str::Lines;
 
 use aoc_commons::Part;
+use range_set_blaze::prelude::*;
 
 struct MapEntry {
-    src: Range<i64>,
+    src_start: i64,
+    src_end: i64,
     diff: i64,
 }
 impl MapEntry {
@@ -14,71 +16,24 @@ impl MapEntry {
             .collect::<Vec<_>>();
         assert_eq!(values.len(), 3);
         MapEntry {
-            src: Range {
-                start: values[1],
-                end: values[1] + values[2],
-            },
+            src_start: values[1],
+            src_end: values[1] + values[2],
             diff: values[0] - values[1],
         }
     }
     pub fn src_start(&self) -> i64 {
-        self.src.start
+        self.src_start
     }
-    pub fn map(&self, range: &Range<i64>) -> (Vec<Range<i64>>, Vec<Range<i64>>) {
-        if self.src.contains(&range.start) {
-            if range.end <= self.src.end {
-                (
-                    vec![],
-                    vec![Range {
-                        start: range.start + self.diff,
-                        end: range.end + self.diff,
-                    }],
-                )
-            } else {
-                (
-                    vec![Range {
-                        start: self.src.end,
-                        end: range.end,
-                    }],
-                    vec![Range {
-                        start: range.start + self.diff,
-                        end: self.src.end + self.diff,
-                    }],
-                )
-            }
-        } else if range.contains(&self.src.start) {
-            if self.src.end < range.end {
-                (
-                    vec![
-                        Range {
-                            start: range.start,
-                            end: self.src.start,
-                        },
-                        Range {
-                            start: self.src.end,
-                            end: range.end,
-                        },
-                    ],
-                    vec![Range {
-                        start: self.src.start + self.diff,
-                        end: self.src.end + self.diff,
-                    }],
-                )
-            } else {
-                (
-                    vec![Range {
-                        start: range.start,
-                        end: self.src.start,
-                    }],
-                    vec![Range {
-                        start: self.src.start + self.diff,
-                        end: range.end + self.diff,
-                    }],
-                )
-            }
-        } else {
-            (vec![range.clone()], vec![])
-        }
+    pub fn map(&self, range: RangeSetBlaze<i64>) -> (RangeSetBlaze<i64>, RangeSetBlaze<i64>) {
+        let mut lower = range;
+        let mut middle = lower.split_off(self.src_start);
+        let upper = middle.split_off(self.src_end);
+        let mapped = middle
+            .ranges()
+            .map(|range| (range.start() + self.diff)..=(range.end() + self.diff))
+            .collect();
+        let remains = lower | upper;
+        (remains, mapped)
     }
 }
 struct Map {
@@ -98,27 +53,21 @@ impl Map {
         entries.sort_by_key(|entry: &MapEntry| entry.src_start());
         Map { entries }
     }
-    fn map_one(&self, range: &Range<i64>) -> Vec<Range<i64>> {
-        let mut current = vec![range.clone()];
+    pub fn map(&self, input: RangeSetBlaze<i64>) -> RangeSetBlaze<i64> {
+        let mut current = input.clone();
         let mut output = vec![];
         for entry in self.entries.iter() {
-            let mut remains = vec![];
-            for r in current.iter() {
-                let (remain, mapped) = entry.map(r);
-                remains.extend_from_slice(&remain);
-                output.extend_from_slice(&mapped)
-            }
+            let (remains, mapped) = entry.map(current);
+            output.push(mapped);
             current = remains;
         }
-
-        [output, current].concat()
-    }
-    pub fn map(&self, input: &[Range<i64>]) -> Vec<Range<i64>> {
-        input.iter().flat_map(|range| self.map_one(range)).collect()
+        // Remaining input are mapped without translation
+        output.push(current);
+        output.union()
     }
 }
 struct Almanac {
-    seeds: Vec<Range<i64>>,
+    seeds: RangeSetBlaze<i64>,
     seed_to_soil: Map,
     soil_to_fertilizer: Map,
     fertilizer_to_water: Map,
@@ -128,7 +77,7 @@ struct Almanac {
     humidity_to_location: Map,
 }
 impl Almanac {
-    pub fn parse_seeds(part: Part, line: &str) -> Vec<Range<i64>> {
+    pub fn parse_seeds(part: Part, line: &str) -> RangeSetBlaze<i64> {
         let values = line
             .split_once(':')
             .unwrap()
@@ -137,20 +86,8 @@ impl Almanac {
             .map(|s| s.parse::<i64>().unwrap())
             .collect::<Vec<_>>();
         match part {
-            Part::Part1 => values
-                .into_iter()
-                .map(|v| Range {
-                    start: v,
-                    end: v + 1,
-                })
-                .collect(),
-            Part::Part2 => values
-                .chunks(2)
-                .map(|c| Range {
-                    start: c[0],
-                    end: c[0] + c[1],
-                })
-                .collect(),
+            Part::Part1 => values.into_iter().collect(),
+            Part::Part2 => values.chunks(2).map(|c| c[0]..=(c[0] + c[1] - 1)).collect(),
         }
     }
     pub fn parse(part: Part, input: &str) -> Almanac {
@@ -169,15 +106,15 @@ impl Almanac {
         }
     }
     pub fn smallest_location(&self) -> i64 {
-        let soil = self.seed_to_soil.map(&self.seeds);
-        let fertilizer = self.soil_to_fertilizer.map(&soil);
-        let water = self.fertilizer_to_water.map(&fertilizer);
-        let light = self.water_to_light.map(&water);
-        let temperature = self.light_to_temperature.map(&light);
-        let humidity = self.temperature_to_humidity.map(&temperature);
-        let location = self.humidity_to_location.map(&humidity);
+        let soil = self.seed_to_soil.map(self.seeds.clone());
+        let fertilizer = self.soil_to_fertilizer.map(soil);
+        let water = self.fertilizer_to_water.map(fertilizer);
+        let light = self.water_to_light.map(water);
+        let temperature = self.light_to_temperature.map(light);
+        let humidity = self.temperature_to_humidity.map(temperature);
+        let location = self.humidity_to_location.map(humidity);
 
-        location.iter().map(|range| range.start).min().unwrap()
+        location.ranges().map(|range| *range.start()).min().unwrap()
     }
 }
 pub fn solver(part: Part, input: &str) -> String {
