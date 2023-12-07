@@ -2,7 +2,7 @@ use std::{fmt::Display, path::PathBuf};
 
 use clap::{Parser, ValueEnum};
 
-#[derive(PartialEq, Eq, Debug, ValueEnum, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, ValueEnum, Clone, Copy, Hash)]
 pub enum Part {
     Part1,
     Part2,
