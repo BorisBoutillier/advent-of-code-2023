@@ -1,12 +1,8 @@
 use std::collections::HashMap;
 
 use aoc_commons::Part;
-const CARDS_P1: [char; 13] = [
-    '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A',
-];
-const CARDS_P2: [char; 13] = [
-    'J', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'Q', 'K', 'A',
-];
+const CARDS_P1: &str = "23456789TJQKA";
+const CARDS_P2: &str = "J23456789TQKA";
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 struct Hand {
@@ -18,7 +14,6 @@ impl Hand {
     fn parse(part: Part, s: &str) -> Hand {
         let cards = s.chars().collect::<Vec<_>>();
         assert_eq!(cards.len(), 5);
-        assert!(cards.iter().all(|c| CARDS_P1.contains(c)));
         let mut card_counts = HashMap::<char, usize>::new();
         let mut n_joker = 0;
         for card in cards.iter() {
@@ -29,17 +24,14 @@ impl Hand {
             }
         }
         let mut sets = vec![0; 6];
+        sets[0] = 1; // There is a least one card with 0 count. Avoids a corner case for JJJJJ.
         for v in card_counts.into_values() {
             sets[v] += 1;
         }
         if n_joker > 0 {
-            if let Some(best) = sets.iter().position(|v| v != &0) {
-                sets[best] -= 1;
-                sets[best + n_joker] += 1;
-            } else {
-                assert_eq!(n_joker, 5);
-                sets[5] += 1;
-            }
+            let best = sets.iter().rev().position(|v| v != &0).unwrap();
+            sets[5 - best] -= 1;
+            sets[5 - best + n_joker] += 1;
         }
         Hand { part, cards, sets }
     }
@@ -52,7 +44,7 @@ impl Hand {
         let card_index = self
             .cards
             .iter()
-            .map(|c| card_value.iter().position(|card| card == c).unwrap())
+            .map(|&c| card_value.chars().position(|card| card == c).unwrap())
             .collect();
         // number of 5 of a kind is better than number of singles
         let mut rev_sets = self.sets.clone();
