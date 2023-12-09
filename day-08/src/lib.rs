@@ -92,6 +92,8 @@ pub fn solver(part: Part, input: &str) -> String {
             m.into_iter().reduce(lcm).unwrap()
         } */
         // Better solution adapted from the internet, not mine.
+        // But still make aditionnal asumptions on the input content,
+        // Like only one output per input, no 'offset' in repetition
         Part::Part2 => map
             .keys()
             .filter(|key| key.ends_with('A'))
