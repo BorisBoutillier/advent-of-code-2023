@@ -1,0 +1,20 @@
+[package]
+name = "day-12"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+aoc-commons = { workspace = true }
+rand = "0.8.5"
+
+[dev-dependencies]
+criterion = { workspace = true }
+
+[profile.release]
+debug = true
+
+[[bench]]
+name = "bench"
+harness = false
