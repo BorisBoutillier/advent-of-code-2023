@@ -1,5 +1,6 @@
 use rand::prelude::*;
-use std::collections::HashMap;
+use std::io::Write;
+use std::{collections::HashMap, fs::OpenOptions};
 
 use aoc_commons::Part;
 const DAMAGED: char = '#';
@@ -131,9 +132,9 @@ impl Row {
             *c
         } else {
             let c = self.lcl_compute_arrangements(cache);
-            if self.springs.len() > 3 && !self.groups.is_empty() {
-                cache.1.insert(self.clone(), c);
-            }
+            //if self.springs.len() > 3 && !self.groups.is_empty() {
+            //    cache.1.insert(self.clone(), c);
+            //}
             c
         }
     }
@@ -283,15 +284,39 @@ impl Row {
     }
 }
 
+const CACHE_FILE_NAME: &str = "Day-12.cache";
 pub fn solver(part: Part, input: &str) -> String {
+    let mut cache = HashMap::new();
+    if let Ok(s) = std::fs::read_to_string(CACHE_FILE_NAME) {
+        for cache_line in s.lines() {
+            let (line, res) = cache_line.split_once(" == ").unwrap();
+            cache.insert(line.to_string(), res.parse::<u32>().unwrap());
+        }
+    }
     let mut sum = 0;
     for (i, line) in input.lines().enumerate() {
-        let row = Row::parse(part, line);
-        println!("ROW:{i:4}: {row:?}");
-        let mut cache = (0, HashMap::<Row, u32>::new());
-        let n = row.compute_arrangements(&mut cache);
-        println!("   -> {n}");
-        sum += n;
+        if let Some(n) = cache.get(line) {
+            println!("ROW:{i:4} CACHED: {line} -> {n}");
+            sum += n;
+        } else {
+            let row = Row::parse(part, line);
+            println!("ROW:{i:4}: {row:?}");
+            let mut cache = (0, HashMap::<Row, u32>::new());
+            let n = row.compute_arrangements(&mut cache);
+            println!("   -> {n}");
+            // Open a file with append option
+            // Update cache
+            {
+                let mut file = OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(CACHE_FILE_NAME)
+                    .expect("cannot open file");
+                file.write_all(format!("{line} == {n}\n").as_bytes())
+                    .expect("Failed to write cache line");
+            }
+            sum += n;
+        }
     }
     sum.to_string()
 }
