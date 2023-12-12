@@ -23,8 +23,48 @@ impl Row {
         let groups = groups
             .split(',')
             .map(|s| s.parse::<usize>().unwrap())
-            .collect();
-        Row { springs, groups }
+            .collect::<Vec<_>>();
+        Row::new(springs, groups).expect("Illegal")
+    }
+    fn new(springs: String, groups: Vec<usize>) -> Option<Row> {
+        let row = Row { springs, groups };
+        row.simplify()
+    }
+    fn simplify(&self) -> Option<Row> {
+        let mut start_groups = vec![];
+        let mut cur_count = 0;
+        let mut last_ok = None;
+        for (i, spring) in self.springs.chars().enumerate() {
+            match spring {
+                UNK => {
+                    break;
+                }
+                OK => {
+                    if cur_count != 0 {
+                        start_groups.push(cur_count);
+                    }
+                    cur_count = 0;
+                    last_ok = Some(i);
+                }
+                DAMAGED => {
+                    cur_count += 1;
+                }
+                _ => panic!(),
+            }
+        }
+        if start_groups.len() > self.groups.len()
+            || (!start_groups
+                .iter()
+                .zip(self.groups.iter())
+                .all(|(g1, g2)| g1 == g2))
+            || (cur_count != 0
+                && (self.groups.len() == start_groups.len()
+                    || self.groups[start_groups.len()] < cur_count))
+        {
+            None
+        } else {
+            Some(self.clone())
+        }
     }
     fn known_damaged_groups(&self) -> HashMap<usize, Vec<usize>> {
         let mut groups = HashMap::new();
@@ -83,7 +123,7 @@ impl Row {
     }
     fn compute_arrangements(&self, cache: &mut (u32, HashMap<Row, u32>)) -> u32 {
         cache.0 += 1;
-        if cache.0 % 100000 == 0 {
+        if cache.0 % 1000000 == 0 {
             println!("   {:10}:  {self:?}", cache.0);
         }
         if let Some(c) = cache.1.get(self) {
@@ -102,6 +142,10 @@ impl Row {
             return !self.springs.contains(DAMAGED) as u32;
         }
         if self.springs.is_empty() {
+            return 0;
+        }
+        if self.simplify().is_none() {
+            //println!("ILLEGAL: {self:?}");
             return 0;
         }
         let min_groups = self
@@ -199,23 +243,24 @@ impl Row {
                 0
             }
         } else {
-            // pick an unknown in the middle and force it to the two possible values
-            let bests = unknowns
-                .iter()
-                .enumerate()
-                .filter(|(_i, &idx)| {
-                    (idx == 0 || self.springs.chars().nth(idx - 1).unwrap() != UNK)
-                        && (idx == self.springs.len() - 1
-                            || self.springs.chars().nth(idx + 1).unwrap() != UNK)
-                })
-                .map(|(i, _)| i)
-                .collect::<Vec<_>>();
-            let mut rng = rand::thread_rng();
-            let idx = unknowns.remove(if !bests.is_empty() {
-                *bests.choose(&mut rng).unwrap()
-            } else {
-                rng.gen_range(0..unknowns.len())
-            });
+            //// pick an unknown in the middle and force it to the two possible values
+            //let bests = unknowns
+            //    .iter()
+            //    .enumerate()
+            //    .filter(|(_i, &idx)| {
+            //        (idx == 0 || self.springs.chars().nth(idx - 1).unwrap() != UNK)
+            //            && (idx == self.springs.len() - 1
+            //                || self.springs.chars().nth(idx + 1).unwrap() != UNK)
+            //    })
+            //    .map(|(i, _)| i)
+            //    .collect::<Vec<_>>();
+            //let mut rng = rand::thread_rng();
+            //let idx = unknowns.remove(if !bests.is_empty() {
+            //    *bests.choose(&mut rng).unwrap()
+            //} else {
+            //    rng.gen_range(0..unknowns.len())
+            //});
+            let idx = unknowns.remove(0);
 
             let mut order = vec![OK.to_string(), DAMAGED.to_string()];
             //order.shuffle(&mut rng);
@@ -242,7 +287,7 @@ pub fn solver(part: Part, input: &str) -> String {
     let mut sum = 0;
     for (i, line) in input.lines().enumerate() {
         let row = Row::parse(part, line);
-        println!("ROW: {row:?}");
+        println!("ROW:{i:4}: {row:?}");
         let mut cache = (0, HashMap::<Row, u32>::new());
         let n = row.compute_arrangements(&mut cache);
         println!("   -> {n}");
