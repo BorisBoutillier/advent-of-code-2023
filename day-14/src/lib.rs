@@ -150,12 +150,12 @@ pub fn solver(part: Part, input: &str) -> String {
             while cycle < N_CYCLE {
                 for dir in [N, W, S, E].into_iter() {
                     tilt(&mut platform, dir);
-                    if let Some(cycle_prev) = cache.get(&(platform.clone(), dir)) {
-                        let repeat = (N_CYCLE - 1 - cycle) / (cycle - cycle_prev);
-                        cycle += repeat * (cycle - cycle_prev);
-                    } else {
-                        cache.insert((platform.clone(), dir), cycle);
-                    }
+                }
+                if let Some(cycle_prev) = cache.get(&platform.clone()) {
+                    let repeat = (N_CYCLE - cycle) / (cycle - cycle_prev);
+                    cycle += repeat * (cycle - cycle_prev);
+                } else {
+                    cache.insert(platform.clone(), cycle);
                 }
                 cycle += 1;
             }
