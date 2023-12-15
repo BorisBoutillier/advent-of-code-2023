@@ -1,5 +1,4 @@
-use std::io::Write;
-use std::{collections::HashMap, fs::OpenOptions};
+use std::collections::HashMap;
 
 use aoc_commons::Part;
 const DAMAGED: char = '#';
@@ -115,7 +114,7 @@ impl Row {
 
 pub fn solver(part: Part, input: &str) -> String {
     let mut sum = 0;
-    for (i, line) in input.lines().enumerate() {
+    for (_i, line) in input.lines().enumerate() {
         let row = Row::parse(part, line);
         //println!("ROW:{i:4}: {row:?}");
         let mut cache = HashMap::new();
