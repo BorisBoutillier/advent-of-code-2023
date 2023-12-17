@@ -47,7 +47,7 @@ pub fn load(platform: &[Vec<char>]) -> usize {
         })
         .sum::<usize>()
 }
-fn print(platform: &[Vec<char>]) {
+fn _print(platform: &[Vec<char>]) {
     for row in platform.iter() {
         println!("{}", row.iter().collect::<String>());
     }

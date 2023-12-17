@@ -18,3 +18,6 @@ debug = true
 [[bench]]
 name = "bench"
 harness = false
+
+[lints.clippy]
+needless_range_loop = "allow"

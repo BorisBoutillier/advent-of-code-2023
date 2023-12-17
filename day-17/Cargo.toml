@@ -1,5 +1,5 @@
 [package]
-name = "day-12"
+name = "day-17"
 version = "0.1.0"
 edition = "2021"
 
@@ -20,4 +20,5 @@ name = "bench"
 harness = false
 
 [lints.clippy]
-useless_vec = "allow"
+needless_range_loop = "allow"
+
