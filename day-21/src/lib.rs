@@ -62,17 +62,94 @@ pub fn get_next(x: isize, y: isize, map: &Map) -> HashSet<(isize, isize)> {
         .collect()
 }
 type Reachable = HashMap<(isize, isize), isize>;
+struct DepthCount {
+    counts: HashMap<isize, usize>,
+    count_max_even: usize,
+    count_max_odd: usize,
+    max: isize,
+}
+impl DepthCount {
+    pub fn new(reachables: &Reachable) -> DepthCount {
+        let mut depth_count = HashMap::new();
+        for d in reachables.values() {
+            *depth_count.entry(*d).or_insert(0usize) += 1;
+        }
+        let max = *depth_count.keys().max().unwrap();
+        let mut counts = HashMap::new();
+        for steps in 0..=max {
+            counts.insert(
+                steps,
+                depth_count
+                    .iter()
+                    .map(|(&d, &c)| {
+                        if d % 2 == steps % 2 && d <= steps {
+                            c
+                        } else {
+                            0
+                        }
+                    })
+                    .sum::<usize>(),
+            );
+        }
+        let count_max_even = depth_count
+            .iter()
+            .map(|(&d, &c)| {
+                if d % 2 == (max * 2) % 2 && d <= max * 2 {
+                    c
+                } else {
+                    0
+                }
+            })
+            .sum::<usize>();
+        let count_max_odd = depth_count
+            .iter()
+            .map(|(&d, &c)| {
+                if d % 2 == (max * 2 + 1) % 2 && d <= max * 2 + 1 {
+                    c
+                } else {
+                    0
+                }
+            })
+            .sum::<usize>();
+        DepthCount {
+            counts,
+            count_max_even,
+            count_max_odd,
+            max,
+        }
+    }
+    fn count_for(&self, steps: isize) -> usize {
+        if steps > self.max {
+            if steps % 2 == 0 {
+                self.count_max_even
+            } else {
+                self.count_max_odd
+            }
+        } else {
+            *self.counts.get(&steps).unwrap()
+        }
+    }
+}
+
 use pathfinding::prelude::dijkstra_all;
-pub fn count_from(reachables1: &Reachable, reachables2: &Reachable, steps: isize) -> usize {
-    reachables1
+pub fn count_from(reachables: &Reachable, steps: isize) -> usize {
+    reachables
         .iter()
-        .filter(|&((x, y), d)| {
-            (x + y) % 2 == steps % 2 && ((*d).min(*reachables2.get(&(*x, *y)).unwrap()) <= steps)
-        })
+        .filter(|&(_, d)| d % 2 == steps % 2 && *d <= steps)
         .count()
 }
 
 pub fn solver(part: Part, input: &str) -> String {
+    reach(
+        input,
+        match part {
+            Part::Part1 => 64,
+            Part::Part2 => 26501365,
+        },
+    )
+    .to_string()
+}
+pub fn reach(input: &str, steps: isize) -> usize {
     let map = Map::parse(input);
     let successors = |n: &(isize, isize)| -> Vec<((isize, isize), usize)> {
         get_next(n.0, n.1, &map)
@@ -82,131 +159,158 @@ pub fn solver(part: Part, input: &str) -> String {
     };
 
     let start = map.start();
-    let mut reachables_from_start = dijkstra_all(&start, successors)
-        .into_iter()
-        .map(|(pos, (_, d))| (pos, d as isize))
-        .collect::<HashMap<_, _>>();
-    reachables_from_start.insert(start, 0);
-    if part == Part::Part1 {
-        let steps = 64;
-        reachables_from_start
-            .iter()
-            .filter(|&((x, y), d)| (x + y) % 2 == steps % 2 && *d <= steps)
-            .count()
-            .to_string()
-    } else {
-        panic!("Not working");
-        let steps = 26501365;
-        //let steps = 64;
-        assert_eq!(map.len_x(), map.len_y());
-        assert_eq!(start.0, (map.len_x() - 1) / 2);
-        assert_eq!(start.0, start.1);
-        let start_s = (start.0, map.len_y() - 1);
-        let mut reachables_from_s = dijkstra_all(&start_s, successors)
-            .into_iter()
-            .map(|(pos, (_, d))| (pos, d as isize))
-            .collect::<HashMap<_, _>>();
-        reachables_from_s.insert(start_s, 0);
-        let start_n = (start.0, 0);
-        let mut reachables_from_n = dijkstra_all(&start_n, successors)
-            .into_iter()
-            .map(|(pos, (_, d))| (pos, d as isize))
-            .collect::<HashMap<_, _>>();
-        reachables_from_n.insert(start_n, 0);
-        let start_e = (map.len_x() - 1, start.1);
-        let mut reachables_from_e = dijkstra_all(&start_e, successors)
-            .into_iter()
-            .map(|(pos, (_, d))| (pos, d as isize))
-            .collect::<HashMap<_, _>>();
-        reachables_from_e.insert(start_e, 0);
-        let start_w = (map.len_x() - 1, start.1);
-        let mut reachables_from_w = dijkstra_all(&start_w, successors)
-            .into_iter()
-            .map(|(pos, (_, d))| (pos, d as isize))
-            .collect::<HashMap<_, _>>();
-        reachables_from_w.insert(start_w, 0);
-        let max_reach = [
-            &reachables_from_n,
-            &reachables_from_e,
-            &reachables_from_s,
-            &reachables_from_w,
-        ]
-        .iter()
-        .map(|r| r.values().copied().max().unwrap())
-        .max()
-        .unwrap();
-        let cached_count = count_from(
-            &reachables_from_e,
-            &reachables_from_e,
-            steps - map.len_x() / 2,
-        );
-        println!("Max: {max_reach}");
-        let n_grid = 1 + steps / map.len_x();
-        let mut count = 0;
-        for gx in -n_grid..=n_grid {
-            if gx % 1000 == 0 {
-                println!("{gx}");
+    assert_eq!(map.len_x(), map.len_y());
+    assert_eq!(start.0, (map.len_x() - 1) / 2);
+    assert_eq!(start.0, start.1);
+    let len = map.len_x();
+    let half_len = len / 2 + 1;
+    let max = map.len_x() - 1;
+    let mut reachables = HashMap::new();
+    let mut depth_counts = HashMap::new();
+    for gx in -1..=1 {
+        for gy in -1..=1 {
+            let l_start = match (gx, gy) {
+                (-1, -1) => (max, max),
+                (-1, 0) => (max, start.1),
+                (-1, 1) => (max, 0),
+                (0, -1) => (start.0, max),
+                (0, 0) => (start.0, start.1),
+                (0, 1) => (start.0, 0),
+                (1, -1) => (0, max),
+                (1, 0) => (0, start.1),
+                (1, 1) => (0, 0),
+                _ => panic!(),
+            };
+            let mut r = dijkstra_all(&l_start, successors)
+                .into_iter()
+                .map(|(pos, (_, d))| (pos, d as isize))
+                .collect::<HashMap<_, _>>();
+            r.insert(l_start, 0);
+            //println!("ADDING FOR {gx},{gy} {l_start:?}");
+            depth_counts.insert((gx, gy), DepthCount::new(&r));
+            reachables.insert((gx, gy), r);
+        }
+    }
+    //println!("Max: {max_reach}, Cached even: {cached_even}, Cached odd: {cached_odd}");
+    let n_grid = 1 + steps / len;
+    //println!("N-GRID: {n_grid}");
+    let mut count = 0;
+    for gx in -n_grid..=n_grid {
+        if gx % 1_000 == 0 {
+            println!("GX: {gx}");
+        }
+        let gx_a = gx.abs();
+        let max_gy = n_grid + 1 - gx_a;
+        for gy in -max_gy..=max_gy {
+            let gy_a = gy.abs();
+            let used_steps = (gx_a - 1).max(0) * len
+                + gx_a.min(1) * half_len
+                + (gy_a - 1).max(0) * len
+                + gy_a.min(1) * half_len;
+            let remaining_steps = steps - used_steps;
+            //println!(
+            //    "g ({gx},{gy}) -> rem: {remaining_steps}, used: {used_steps} , count: {count}"
+            //);
+            if remaining_steps < 0 {
+                continue;
             }
-            for gy in -n_grid..=n_grid {
-                let remaining_steps = steps
-                    - ((gx.abs() - 1).max(0) * map.len_x() + gx.abs().min(1) * (map.len_x() / 2))
-                    - ((gy.abs() - 1).max(0) * map.len_y() + gy.abs().min(1) * (map.len_y() / 2));
-                if remaining_steps < 0 {
-                    continue;
-                }
-                if (gx, gy) != (0, 0) && remaining_steps > max_reach {
-                    count += cached_count;
-                } else {
-                    use std::cmp::Ordering::*;
-                    count += match (gx.cmp(&0), gy.cmp(&0)) {
-                        (Equal, Equal) => count_from(
-                            &reachables_from_start,
-                            &reachables_from_start,
-                            remaining_steps,
-                        ),
-                        (Less, Equal) => {
-                            count_from(&reachables_from_e, &reachables_from_e, remaining_steps)
-                        }
-                        (Greater, Equal) => {
-                            count_from(&reachables_from_w, &reachables_from_w, remaining_steps)
-                        }
-                        (Equal, Less) => {
-                            count_from(&reachables_from_n, &reachables_from_n, remaining_steps)
-                        }
-                        (Equal, Greater) => {
-                            count_from(&reachables_from_s, &reachables_from_s, remaining_steps)
-                        }
-                        (Less, Less) => {
-                            count_from(&reachables_from_e, &reachables_from_n, remaining_steps)
-                        }
-                        (Less, Greater) => {
-                            count_from(&reachables_from_e, &reachables_from_s, remaining_steps)
-                        }
-                        (Greater, Less) => {
-                            count_from(&reachables_from_w, &reachables_from_n, remaining_steps)
-                        }
-                        (Greater, Greater) => {
-                            count_from(&reachables_from_w, &reachables_from_s, remaining_steps)
-                        }
-                    };
-                }
+            {
+                use std::cmp::Ordering::*;
+                count += match (gx.cmp(&0), gy.cmp(&0)) {
+                    (Equal, Equal) => depth_counts[&(0, 0)].count_for(remaining_steps),
+                    (Less, Equal) => depth_counts[&(-1, 0)].count_for(remaining_steps),
+                    (Greater, Equal) => depth_counts[&(1, 0)].count_for(remaining_steps),
+                    (Equal, Less) => depth_counts[&(0, -1)].count_for(remaining_steps),
+                    (Equal, Greater) => depth_counts[&(0, 1)].count_for(remaining_steps),
+                    (Less, Less) => depth_counts[&(-1, -1)].count_for(remaining_steps),
+                    (Less, Greater) => depth_counts[&(-1, 1)].count_for(remaining_steps),
+                    (Greater, Less) => depth_counts[&(1, -1)].count_for(remaining_steps),
+                    (Greater, Greater) => depth_counts[&(1, 1)].count_for(remaining_steps),
+                };
             }
         }
-        count.to_string()
     }
+    count
 }
 #[cfg(test)]
 mod tests {
-    //use super::*;
-    //#[test]
-    //fn example_part1() {
-    //    assert_eq!(solver(Part::Part1, include_str!("../example.txt")), "16");
-    //}
-    //#[test]
-    //fn example_part2() {
-    //    assert_eq!(
-    //        solver(Part::Part2, include_str!("../example.txt")),
-    //        "167409079868000"
-    //    );
-    //}
+    use super::*;
+    use std::fmt::Write;
+    fn make_3x3(input: &str) -> String {
+        let input_3x1: String = input.lines().fold(String::new(), |mut s, line| {
+            writeln!(
+                s,
+                "{}{}{}",
+                line.replace('S', "."),
+                line,
+                line.replace('S', ".")
+            )
+            .expect("Oops");
+            s
+        });
+        format!(
+            "{}{}{}",
+            input_3x1.replace('S', "."),
+            input_3x1,
+            input_3x1.replace('S', ".")
+        )
+    }
+    fn make_5x5(input: &str) -> String {
+        let input_5x1: String = input.lines().fold(String::new(), |mut s, line| {
+            writeln!(
+                s,
+                "{}{}{}{}{}",
+                line.replace('S', "."),
+                line.replace('S', "."),
+                line,
+                line.replace('S', "."),
+                line.replace('S', "."),
+            )
+            .expect("Oops");
+            s
+        });
+        format!(
+            "{}{}{}{}{}",
+            input_5x1.replace('S', "."),
+            input_5x1.replace('S', "."),
+            input_5x1,
+            input_5x1.replace('S', "."),
+            input_5x1.replace('S', "."),
+        )
+    }
+    #[test]
+    fn mini_example_low_range() {
+        let mini_example = include_str!("../mini_example.txt");
+        let mini_example_3x3 = make_3x3(mini_example);
+        let mini_example_5x5 = make_5x5(mini_example);
+        for steps in 1..=200 {
+            println!("### TESTING for {steps} ---- ");
+            println!("### 1x1");
+            let r1 = reach(mini_example, steps);
+            println!("### 3x3");
+            let r2 = reach(&mini_example_3x3, steps);
+            println!("### 5x5");
+            let r3 = reach(&mini_example_5x5, steps);
+            println!("### -> {r1} vs {r2} vs {r3}");
+            assert_eq!(r1, r2);
+            assert_eq!(r2, r3);
+        }
+    }
+    #[test]
+    fn mini_example_10000() {
+        let mini_example = include_str!("../mini_example.txt");
+        let mini_example_3x3 = make_3x3(mini_example);
+        let mini_example_5x5 = make_5x5(mini_example);
+        let steps = 10000;
+        println!("### TESTING for {steps} ---- ");
+        println!("### 1x1");
+        let r1 = reach(mini_example, steps);
+        println!("### 3x3");
+        let r2 = reach(&mini_example_3x3, steps);
+        println!("### 5x5");
+        let r3 = reach(&mini_example_5x5, steps);
+        println!("### -> {r1} vs {r2} vs {r3}");
+        assert_eq!(r1, r2);
+        assert_eq!(r2, r3);
+    }
 }
