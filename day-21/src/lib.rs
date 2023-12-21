@@ -61,7 +61,19 @@ pub fn get_next(x: isize, y: isize, map: &Map) -> HashSet<(isize, isize)> {
         )
         .collect()
 }
-pub fn part1(map: &Map) -> String {
+type Reachable = HashMap<(isize, isize), isize>;
+use pathfinding::prelude::dijkstra_all;
+pub fn count_from(reachables1: &Reachable, reachables2: &Reachable, steps: isize) -> usize {
+    reachables1
+        .iter()
+        .filter(|&((x, y), d)| {
+            (x + y) % 2 == steps % 2 && ((*d).min(*reachables2.get(&(*x, *y)).unwrap()) <= steps)
+        })
+        .count()
+}
+
+pub fn solver(part: Part, input: &str) -> String {
+    let map = Map::parse(input);
     let successors = |n: &(isize, isize)| -> Vec<((isize, isize), usize)> {
         get_next(n.0, n.1, &map)
             .into_iter()
@@ -70,23 +82,117 @@ pub fn part1(map: &Map) -> String {
     };
 
     let start = map.start();
-    let reachables = dijkstra_all(&start, successors);
-    let steps = 64;
-    let start_is_reached = (map.start.0 + map.start.1) % 2 == steps % 2;
-    (reachables
-        .iter()
-        .filter(|((x, y), (_, d))| (x + y) % 2 == steps % 2 && *d as isize <= steps)
-        .count()
-        + start_is_reached as usize)
-        .to_string()
-}
-use pathfinding::prelude::dijkstra_all;
-pub fn solver(part: Part, input: &str) -> String {
-    let map = Map::parse(input);
+    let mut reachables_from_start = dijkstra_all(&start, successors)
+        .into_iter()
+        .map(|(pos, (_, d))| (pos, d as isize))
+        .collect::<HashMap<_, _>>();
+    reachables_from_start.insert(start, 0);
     if part == Part::Part1 {
-        part1(&map)
+        let steps = 64;
+        reachables_from_start
+            .iter()
+            .filter(|&((x, y), d)| (x + y) % 2 == steps % 2 && *d <= steps)
+            .count()
+            .to_string()
     } else {
-        "0".to_string()
+        panic!("Not working");
+        let steps = 26501365;
+        //let steps = 64;
+        assert_eq!(map.len_x(), map.len_y());
+        assert_eq!(start.0, (map.len_x() - 1) / 2);
+        assert_eq!(start.0, start.1);
+        let start_s = (start.0, map.len_y() - 1);
+        let mut reachables_from_s = dijkstra_all(&start_s, successors)
+            .into_iter()
+            .map(|(pos, (_, d))| (pos, d as isize))
+            .collect::<HashMap<_, _>>();
+        reachables_from_s.insert(start_s, 0);
+        let start_n = (start.0, 0);
+        let mut reachables_from_n = dijkstra_all(&start_n, successors)
+            .into_iter()
+            .map(|(pos, (_, d))| (pos, d as isize))
+            .collect::<HashMap<_, _>>();
+        reachables_from_n.insert(start_n, 0);
+        let start_e = (map.len_x() - 1, start.1);
+        let mut reachables_from_e = dijkstra_all(&start_e, successors)
+            .into_iter()
+            .map(|(pos, (_, d))| (pos, d as isize))
+            .collect::<HashMap<_, _>>();
+        reachables_from_e.insert(start_e, 0);
+        let start_w = (map.len_x() - 1, start.1);
+        let mut reachables_from_w = dijkstra_all(&start_w, successors)
+            .into_iter()
+            .map(|(pos, (_, d))| (pos, d as isize))
+            .collect::<HashMap<_, _>>();
+        reachables_from_w.insert(start_w, 0);
+        let max_reach = [
+            &reachables_from_n,
+            &reachables_from_e,
+            &reachables_from_s,
+            &reachables_from_w,
+        ]
+        .iter()
+        .map(|r| r.values().copied().max().unwrap())
+        .max()
+        .unwrap();
+        let cached_count = count_from(
+            &reachables_from_e,
+            &reachables_from_e,
+            steps - map.len_x() / 2,
+        );
+        println!("Max: {max_reach}");
+        let n_grid = 1 + steps / map.len_x();
+        let mut count = 0;
+        for gx in -n_grid..=n_grid {
+            if gx % 1000 == 0 {
+                println!("{gx}");
+            }
+            for gy in -n_grid..=n_grid {
+                let remaining_steps = steps
+                    - ((gx.abs() - 1).max(0) * map.len_x() + gx.abs().min(1) * (map.len_x() / 2))
+                    - ((gy.abs() - 1).max(0) * map.len_y() + gy.abs().min(1) * (map.len_y() / 2));
+                if remaining_steps < 0 {
+                    continue;
+                }
+                if (gx, gy) != (0, 0) && remaining_steps > max_reach {
+                    count += cached_count;
+                } else {
+                    use std::cmp::Ordering::*;
+                    count += match (gx.cmp(&0), gy.cmp(&0)) {
+                        (Equal, Equal) => count_from(
+                            &reachables_from_start,
+                            &reachables_from_start,
+                            remaining_steps,
+                        ),
+                        (Less, Equal) => {
+                            count_from(&reachables_from_e, &reachables_from_e, remaining_steps)
+                        }
+                        (Greater, Equal) => {
+                            count_from(&reachables_from_w, &reachables_from_w, remaining_steps)
+                        }
+                        (Equal, Less) => {
+                            count_from(&reachables_from_n, &reachables_from_n, remaining_steps)
+                        }
+                        (Equal, Greater) => {
+                            count_from(&reachables_from_s, &reachables_from_s, remaining_steps)
+                        }
+                        (Less, Less) => {
+                            count_from(&reachables_from_e, &reachables_from_n, remaining_steps)
+                        }
+                        (Less, Greater) => {
+                            count_from(&reachables_from_e, &reachables_from_s, remaining_steps)
+                        }
+                        (Greater, Less) => {
+                            count_from(&reachables_from_w, &reachables_from_n, remaining_steps)
+                        }
+                        (Greater, Greater) => {
+                            count_from(&reachables_from_w, &reachables_from_s, remaining_steps)
+                        }
+                    };
+                }
+            }
+        }
+        count.to_string()
     }
 }
 #[cfg(test)]
