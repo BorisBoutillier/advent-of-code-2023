@@ -395,6 +395,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "day-19"
+version = "0.1.0"
+dependencies = [
+ "aoc-commons",
+ "criterion",
+ "rand",
+ "range-set-blaze",
+]
+
+[[package]]
+name = "day-20"
+version = "0.1.0"
+dependencies = [
+ "aoc-commons",
+ "criterion",
+ "num",
+ "rand",
+ "range-set-blaze",
+]
+
+[[package]]
+name = "day-21"
+version = "0.1.0"
+dependencies = [
+ "aoc-commons",
+ "criterion",
+ "num",
+ "rand",
+ "range-set-blaze",
+]
+
+[[package]]
 name = "either"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
