@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 aoc-commons = { workspace = true }
 num = "0.4.1"
+pathfinding = "4.6.0"
 rand = "0.8.5"
 range-set-blaze = "0.1.13"
 
