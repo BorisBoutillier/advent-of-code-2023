@@ -428,6 +428,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "day-22"
+version = "0.1.0"
+dependencies = [
+ "aoc-commons",
+ "criterion",
+ "num",
+ "pathfinding",
+ "rand",
+ "range-set-blaze",
+]
+
+[[package]]
+name = "day-23"
+version = "0.1.0"
+dependencies = [
+ "aoc-commons",
+ "criterion",
+ "num",
+ "pathfinding",
+ "rand",
+ "range-set-blaze",
+]
+
+[[package]]
 name = "deprecate-until"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
