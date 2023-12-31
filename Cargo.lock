@@ -469,6 +469,7 @@ dependencies = [
  "f128",
  "itertools 0.12.0",
  "num",
+ "num-bigint",
  "pathfinding",
  "rand",
  "range-set-blaze",
